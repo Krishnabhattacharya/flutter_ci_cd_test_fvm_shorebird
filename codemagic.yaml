@@ -1,0 +1,110 @@
+definitions:
+  env_versions: &env_versions
+    flutter: stable        # pin e.g. 3.x.x for reproducible builds
+    xcode: latest
+    cocoapods: default
+
+workflows:
+  android-release:
+    name: Android Release
+    instance_type: linux_x2
+    max_build_duration: 30
+    environment:
+      <<: *env_versions
+      groups:
+        - google_play
+        - app_config
+      android_signing:
+        - release_keystore
+      vars:
+        PACKAGE_NAME: "com.example.app"
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.pub-cache
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Analyze
+        script: flutter analyze
+      - name: Test
+        script: flutter test
+      - name: Set build number
+        script: |
+          LATEST=$(google-play get-latest-build-number --package-name "$PACKAGE_NAME" --tracks=internal || echo 0)
+          echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
+      - name: Build AAB
+        script: |
+          flutter build appbundle --release \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=API_URL=$API_URL
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+      email:
+        recipients:
+          - you@example.com
+
+  ios-release:
+    name: iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      <<: *env_versions
+      groups:
+        - app_config
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.example.app
+      vars:
+        APP_STORE_APPLE_ID: 1234567890
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    cache:
+      cache_paths:
+        - $HOME/Library/Caches/CocoaPods
+        - $HOME/.pub-cache
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Pods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Test
+        script: flutter test
+      - name: Apply signing
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=API_URL=$API_URL
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
