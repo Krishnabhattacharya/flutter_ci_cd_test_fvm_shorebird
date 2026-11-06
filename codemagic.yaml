@@ -5,9 +5,9 @@ definitions:
 
 workflows:
 
-  # ─── iOS: build & push to TestFlight (triggered on v* tags) ───────────────
+  # ─── iOS: Shorebird release + TestFlight (triggered on v* tags) ───────────
   ios-release:
-    name: iOS Release
+    name: iOS Release (Shorebird)
     instance_type: mac_mini_m2
     max_build_duration: 45
     integrations:
@@ -15,7 +15,8 @@ workflows:
     environment:
       <<: *env_versions
       groups:
-        - app_config   # must contain CERTIFICATE_PRIVATE_KEY (secure)
+        - app_config    # CERTIFICATE_PRIVATE_KEY
+        - shorebird     # SHOREBIRD_TOKEN
       vars:
         BUNDLE_ID: "com.krishna.testAppCiCd"
         APPLE_TEAM_ID: "976G79796W"
@@ -31,6 +32,7 @@ workflows:
         - $HOME/Library/Caches/CocoaPods
         - $HOME/.pub-cache
         - $HOME/.fvm
+        - $HOME/.shorebird
     scripts:
       - name: Setup FVM
         script: |
@@ -38,6 +40,12 @@ workflows:
           export PATH="$PATH":"$HOME/.pub-cache/bin"
           fvm use stable --force
           fvm flutter --version
+      - name: Setup Shorebird
+        script: |
+          curl --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh \
+            -sSf | bash
+          echo PATH="$HOME/.shorebird/bin:$PATH" >> $CM_ENV
       - name: Get packages
         script: |
           export PATH="$PATH":"$HOME/.pub-cache/bin"
@@ -61,10 +69,9 @@ workflows:
           LATEST=$(app-store-connect get-latest-testflight-build-number \
             "$APP_STORE_APPLE_ID" || echo 0)
           echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
-      - name: Build IPA
+      - name: Shorebird Release (iOS)
         script: |
-          export PATH="$PATH":"$HOME/.pub-cache/bin"
-          fvm flutter build ipa --release \
+          shorebird release ios \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
@@ -74,6 +81,69 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+      email:
+        recipients:
+          - bhattacharyakrishna2010@gmail.com
+
+  # ─── iOS: Shorebird OTA patch (triggered on patch/* branches) ─────────────
+  ios-patch:
+    name: iOS Patch (Shorebird OTA)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    integrations:
+      app_store_connect: CodeMajic
+    environment:
+      <<: *env_versions
+      groups:
+        - app_config
+        - shorebird
+      vars:
+        BUNDLE_ID: "com.krishna.testAppCiCd"
+        APPLE_TEAM_ID: "976G79796W"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "patch/*"
+          include: true
+    cache:
+      cache_paths:
+        - $HOME/Library/Caches/CocoaPods
+        - $HOME/.pub-cache
+        - $HOME/.fvm
+        - $HOME/.shorebird
+    scripts:
+      - name: Setup FVM
+        script: |
+          dart pub global activate fvm
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          fvm use stable --force
+          fvm flutter --version
+      - name: Setup Shorebird
+        script: |
+          curl --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh \
+            -sSf | bash
+          echo PATH="$HOME/.shorebird/bin:$PATH" >> $CM_ENV
+      - name: Get packages
+        script: |
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          fvm flutter pub get
+      - name: Install pods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Shorebird Patch (iOS)
+        script: shorebird patch ios
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
       email:
         recipients:
           - bhattacharyakrishna2010@gmail.com
