@@ -7,5 +7,9 @@ void main() {
 
     expect(find.text('CI/CD Test App'), findsOneWidget);
     expect(find.text('Shorebird · FVM · GitHub Actions'), findsOneWidget);
+
+    // Advance past the 2s splash timer so no pending timers remain
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
   });
 }

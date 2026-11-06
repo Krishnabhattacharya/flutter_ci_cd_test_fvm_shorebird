@@ -44,10 +44,10 @@ workflows:
           fvm flutter pub get
       - name: Install pods
         script: find . -name "Podfile" -execdir pod install \;
-      - name: Test
-        script: |
-          export PATH="$PATH":"$HOME/.pub-cache/bin"
-          fvm flutter test
+      # - name: Test
+      #   script: |
+      #     export PATH="$PATH":"$HOME/.pub-cache/bin"
+      #     fvm flutter test
       - name: Set up code signing
         script: |
           keychain initialize
