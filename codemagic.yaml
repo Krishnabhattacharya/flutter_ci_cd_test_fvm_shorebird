@@ -73,6 +73,7 @@ workflows:
         script: |
           shorebird release ios \
             --build-number=$BUILD_NUMBER \
+            --flutter-version=$(fvm flutter --version --machine | grep '"frameworkVersion"' | awk -F'"' '{print $4}') \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
