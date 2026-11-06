@@ -19,7 +19,7 @@ workflows:
         bundle_identifier: com.krishna.testAppCiCd
       vars:
         APPLE_TEAM_ID: "ZFMW2R7KJ9"
-        APP_STORE_APPLE_ID: 976G79796W
+        APP_STORE_APPLE_ID: 6831504522
     triggering:
       events:
         - tag
