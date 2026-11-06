@@ -14,10 +14,10 @@ workflows:
       app_store_connect: codemagic
     environment:
       <<: *env_versions
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.krishna.testAppCiCd
+      groups:
+        - app_config   # must contain CERTIFICATE_PRIVATE_KEY (secure)
       vars:
+        BUNDLE_ID: "com.krishna.testAppCiCd"
         APPLE_TEAM_ID: "976G79796W"
         APP_STORE_APPLE_ID: 6831504522
     triggering:
@@ -35,16 +35,27 @@ workflows:
       - name: Setup FVM
         script: |
           dart pub global activate fvm
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
           fvm use stable --force
           fvm flutter --version
       - name: Get packages
-        script: fvm flutter pub get
+        script: |
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          fvm flutter pub get
       - name: Install pods
         script: find . -name "Podfile" -execdir pod install \;
       - name: Test
-        script: fvm flutter test
-      - name: Apply signing
-        script: xcode-project use-profiles
+        script: |
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          fvm flutter test
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Set build number
         script: |
           LATEST=$(app-store-connect get-latest-testflight-build-number \
@@ -52,6 +63,7 @@ workflows:
           echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
       - name: Build IPA
         script: |
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
           fvm flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
