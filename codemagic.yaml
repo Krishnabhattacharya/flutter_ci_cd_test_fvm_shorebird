@@ -17,6 +17,9 @@ workflows:
       groups:
         - app_config    # CERTIFICATE_PRIVATE_KEY
         - shorebird     # SHOREBIRD_TOKEN
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.krishna.testAppCiCd
       vars:
         BUNDLE_ID: "com.krishna.testAppCiCd"
         APPLE_TEAM_ID: "976G79796W"
@@ -98,6 +101,9 @@ workflows:
       groups:
         - app_config
         - shorebird
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.krishna.testAppCiCd
       vars:
         BUNDLE_ID: "com.krishna.testAppCiCd"
         APPLE_TEAM_ID: "976G79796W"
