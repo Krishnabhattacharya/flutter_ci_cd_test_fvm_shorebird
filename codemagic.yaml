@@ -46,8 +46,6 @@ workflows:
             https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh \
             -sSf | bash
           echo PATH="$HOME/.shorebird/bin:$PATH" >> $CM_ENV
-          export PATH="$HOME/.shorebird/bin:$PATH"
-          shorebird login --ci "$SHOREBIRD_TOKEN"
       - name: Get packages
         script: |
           export PATH="$PATH":"$HOME/.pub-cache/bin"
@@ -127,8 +125,6 @@ workflows:
             https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh \
             -sSf | bash
           echo PATH="$HOME/.shorebird/bin:$PATH" >> $CM_ENV
-          export PATH="$HOME/.shorebird/bin:$PATH"
-          shorebird login --ci "$SHOREBIRD_TOKEN"
       - name: Get packages
         script: |
           export PATH="$PATH":"$HOME/.pub-cache/bin"
